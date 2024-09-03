@@ -36,7 +36,7 @@ func (c *Container[T]) Get(name string) T {
 	return *(new(T))
 }
 
-// GetE gets a value from the container by name or error if not found
+// GetE gets a value from the container by name or exception if not found
 func (c *Container[T]) GetE(name string) (T, error) {
 	locked := c.instances.TryRLock()
 	v, ok := c.instances.Get(name)
