@@ -12,7 +12,7 @@ func TestContainer(t *testing.T) {
 	assert.Equal(t, 1, c.Get("value1"))
 
 	var value = 2
-	c.Lazy("value2", func() (int, error) {
+	c.Defer("value2", func() (int, error) {
 		defer func() {
 			value++
 		}()

@@ -38,47 +38,37 @@ func (c *Container[T]) Get(name string) T {
 
 // GetE gets a value from the container by name or exception if not found
 func (c *Container[T]) GetE(name string) (T, error) {
-	locked := c.instances.TryRLock()
-	v, ok := c.instances.Get(name)
-	if ok {
-		if locked {
-			c.instances.RUnlock()
-		}
+	c.instances.RLock()
+	if v, ok := c.instances.Get(name); ok {
+		c.instances.RUnlock()
 		return v, nil
 	}
-	if locked {
-		c.instances.RUnlock()
-	}
+	c.instances.RUnlock()
 	v, err := c.Make(name)
 	if err != nil {
-		return *(new(T)), err
+		return *new(T), err
 	}
-	defer func() {
-		if c.instances.TryLock() {
-			defer c.instances.Unlock()
-		}
-		c.instances.Set(name, v)
-	}()
-	return v, nil
+	c.instances.Lock()
+	c.instances.Set(name, v)
+	c.instances.Unlock()
+	return v, err
 }
 
 // Has checks if the container has a value or a constructor by name
 func (c *Container[T]) Has(name string) bool {
-	if c.instances.TryRLock() {
-		defer c.instances.RUnlock()
-	}
+	c.instances.RLock()
 	ok := c.instances.ContainsKey(name)
 	if ok {
+		c.instances.RUnlock()
 		return true
 	}
-	if c.constructors.TryRLock() {
-		defer c.constructors.RUnlock()
-	}
+	c.constructors.RLock()
+	defer c.constructors.RUnlock()
 	return c.constructors.ContainsKey(name)
 }
 
 // Lazy sets a constructor function that will be called when the value is accessed
-func (c *Container[T]) Lazy(name string, constructor func() (T, error)) {
+func (c *Container[T]) Defer(name string, constructor func() (T, error)) {
 	c.constructors.Lock()
 	defer c.constructors.Unlock()
 	c.constructors.Set(name, constructor)
@@ -86,9 +76,8 @@ func (c *Container[T]) Lazy(name string, constructor func() (T, error)) {
 
 // Make makes a new instance of the value.
 func (c *Container[T]) Make(name string) (T, error) {
-	if c.constructors.TryRLock() {
-		defer c.constructors.RUnlock()
-	}
+	c.constructors.RLock()
+	defer c.constructors.RUnlock()
 	constructor, ok := c.constructors.Get(name)
 	if ok {
 		return constructor()
