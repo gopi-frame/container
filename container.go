@@ -3,6 +3,7 @@ package container
 
 import (
 	"fmt"
+
 	"github.com/gopi-frame/collection/kv"
 	"github.com/gopi-frame/exception"
 )
@@ -67,11 +68,21 @@ func (c *Container[T]) Has(name string) bool {
 	return c.constructors.ContainsKey(name)
 }
 
-// Lazy sets a constructor function that will be called when the value is accessed
+// Defer sets a constructor function that will be called when the value is accessed
 func (c *Container[T]) Defer(name string, constructor func() (T, error)) {
 	c.constructors.Lock()
 	defer c.constructors.Unlock()
 	c.constructors.Set(name, constructor)
+}
+
+// Remove removes a value or constructor by name
+func (c *Container[T]) Remove(name string) {
+	c.instances.Lock()
+	defer c.instances.Unlock()
+	c.instances.Remove(name)
+	c.constructors.Lock()
+	defer c.constructors.Unlock()
+	c.constructors.Remove(name)
 }
 
 // Make makes a new instance of the value.
